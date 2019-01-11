@@ -20,7 +20,7 @@ class CarouselSlider extends StatefulWidget {
   final num initialPage;
   final double aspectRatio;
   final double height;
-  final PageController pageController;
+  PageController pageController;
   final num realPage;
   final bool autoPlay;
   final Duration autoPlayDuration;
@@ -31,11 +31,11 @@ class CarouselSlider extends StatefulWidget {
   final bool distortion;
 
   CarouselSlider({
-    @required
-    this.items,
+    PageController controller,
+    @required this.items,
     this.viewportFraction: 0.8,
     this.initialPage: 0,
-    this.aspectRatio: 16/9,
+    this.aspectRatio: 16 / 9,
     this.height,
     this.realPage: 10000,
     this.autoPlay: false,
@@ -45,15 +45,26 @@ class CarouselSlider extends StatefulWidget {
     this.autoPlayDuration: const Duration(milliseconds: 800),
     this.updateCallback,
     this.distortion: true,
-  }) :
-    pageController = new PageController(
-      viewportFraction: viewportFraction,
-      initialPage: realPage + initialPage,
-    );
+  }) {
+    /*
+      : pageController = PageController(
+          viewportFraction: viewportFraction,
+          initialPage: realPage + initialPage,
+        );
+    */
+    if (controller != null) {
+      pageController = controller;
+    } else {
+      pageController = PageController(
+        initialPage: realPage + initialPage,
+        viewportFraction: viewportFraction,
+      );
+    }
+  }
 
   @override
   _CarouselSliderState createState() {
-    return new _CarouselSliderState();
+    return _CarouselSliderState();
   }
 
   Future<Null> nextPage({Duration duration, Curve curve}) {
@@ -71,11 +82,8 @@ class CarouselSlider extends StatefulWidget {
 
   animateToPage(int page, {Duration duration, Curve curve}) {
     final index = _getRealIndex(pageController.page.toInt(), realPage, items.length);
-    return pageController.animateToPage(
-      pageController.page.toInt() + page - index, 
-      duration: duration,
-      curve: curve
-    );
+    return pageController.animateToPage(pageController.page.toInt() + page - index,
+        duration: duration, curve: curve);
   }
 }
 
@@ -88,26 +96,18 @@ class _CarouselSliderState extends State<CarouselSlider> with TickerProviderStat
     super.initState();
     currentPage = widget.initialPage;
     if (widget.autoPlay) {
-      timer = new Timer.periodic(widget.interval, (_) {
-        widget.pageController.nextPage(
-          duration: widget.autoPlayDuration,
-          curve: widget.autoPlayCurve
-        );
+      timer = Timer.periodic(widget.interval, (_) {
+        widget.pageController
+            .nextPage(duration: widget.autoPlayDuration, curve: widget.autoPlayCurve);
       });
     }
   }
 
   getWrapper(Widget child) {
     if (widget.height != null) {
-      return Container(
-        height: widget.height,
-        child: child
-      );
+      return Container(height: widget.height, child: child);
     } else {
-      return AspectRatio(
-        aspectRatio: widget.aspectRatio,
-        child: child
-      );
+      return AspectRatio(aspectRatio: widget.aspectRatio, child: child);
     }
   }
 
@@ -119,24 +119,23 @@ class _CarouselSliderState extends State<CarouselSlider> with TickerProviderStat
 
   @override
   Widget build(BuildContext context) {
-    return getWrapper(
-      PageView.builder(
-        onPageChanged: (int index) {
-          currentPage = _getRealIndex(index, widget.realPage, widget.items.length);
-          if (widget.updateCallback != null) widget.updateCallback(currentPage);
-        },
-        controller: widget.pageController,
-        reverse: widget.reverse,
-        itemBuilder: (BuildContext context, int i) {
-          final int index = _getRealIndex(i, widget.realPage, widget.items.length);
+    return getWrapper(PageView.builder(
+      onPageChanged: (int index) {
+        currentPage = _getRealIndex(index, widget.realPage, widget.items.length);
+        if (widget.updateCallback != null) widget.updateCallback(currentPage);
+      },
+      controller: widget.pageController,
+      reverse: widget.reverse,
+      itemBuilder: (BuildContext context, int i) {
+        final int index = _getRealIndex(i, widget.realPage, widget.items.length);
 
-          return AnimatedBuilder(
+        return AnimatedBuilder(
             animation: widget.pageController,
             builder: (BuildContext context, child) {
-              // on the first render, the pageController.page is null, 
+              // on the first render, the pageController.page is null,
               // this is a dirty hack
-              if (widget.pageController.position.minScrollExtent == null 
-                || widget.pageController.position.maxScrollExtent == null) {
+              if (widget.pageController.position.minScrollExtent == null ||
+                  widget.pageController.position.maxScrollExtent == null) {
                 Future.delayed(Duration(microseconds: 1), () {
                   setState(() {});
                 });
@@ -145,20 +144,15 @@ class _CarouselSliderState extends State<CarouselSlider> with TickerProviderStat
               double value = widget.pageController.page - i;
               value = (1 - (value.abs() * 0.3)).clamp(0.0, 1.0);
 
-              final double height = widget.height ?? MediaQuery.of(context).size.width * (1 / widget.aspectRatio);
-              final double distortionValue = widget.distortion ? Curves.easeOut.transform(value) : 1.0;
+              final double height =
+                  widget.height ?? MediaQuery.of(context).size.width * (1 / widget.aspectRatio);
+              final double distortionValue =
+                  widget.distortion ? Curves.easeOut.transform(value) : 1.0;
 
-              return Center(
-                child: SizedBox(
-                  height: distortionValue * height,
-                  child: child
-                )
-              );
+              return Center(child: SizedBox(height: distortionValue * height, child: child));
             },
-            child: widget.items[index]
-          );
-        },
-      )
-    );
+            child: widget.items[index]);
+      },
+    ));
   }
 }
